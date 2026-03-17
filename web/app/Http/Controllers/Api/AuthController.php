@@ -24,6 +24,7 @@ class AuthController extends Controller
         }
 
         return response()->json([
+            'message' => 'Logged successfully',
             'token' => $token,
             'type' => 'bearer',
             'expires_in' => (int) config('jwt.ttl') * 60,
@@ -37,6 +38,7 @@ class AuthController extends Controller
         $user = User::create($dto->toArray());
         $token = Auth::guard('api')->login($user);
         return response()->json([
+            'message' => 'Registered successfully',
             'token' => $token,
             'type' => 'bearer',
             'expires_in' => (int) config('jwt.ttl') *  60,
