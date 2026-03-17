@@ -28,7 +28,6 @@ final class RegisterUserDTO
 			name: trim($data['name']),
 			email: strtolower(trim($data['email'])),
 			password: $data['password'],
-			role: $data['role'] ?? 'client',
 		);
 	}
 
