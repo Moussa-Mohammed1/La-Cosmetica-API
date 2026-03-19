@@ -25,7 +25,7 @@ class Product extends Model
         'prix' => 'decimal:2',
     ];
 
-    public function getSlugOptions()
+    public function getSlugOptions() : SlugOptions
     {
         return SlugOptions::create()
                 ->generateSlugsFrom('name')
