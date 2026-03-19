@@ -135,4 +135,48 @@ class OrderController extends Controller
             'message' => 'Order deleted successfully.',
         ]);
     }
+
+    public function cancel(int $id): JsonResponse
+    {
+        $user = auth('api')->user();
+
+        if (!$user) {
+            return response()->json([
+                'message' => 'Unauthorized. Please authenticate before cancelling an order.',
+            ], 401);
+        }
+
+        $order = $this->orderDAO->findById($id);
+
+        if (!$order) {
+            return response()->json([
+                'message' => 'Order not found.',
+            ], 404);
+        }
+
+        if ($order->user_id !== $user->id) {
+            return response()->json([
+                'message' => 'You are not authorized to cancel this order.',
+            ], 403);
+        }
+
+        if ($order->status === 'delivered') {
+            return response()->json([
+                'message' => 'Cannot cancel an order that has already been delivered.',
+            ], 422);
+        }
+
+        if ($order->status === 'cancelled') {
+            return response()->json([
+                'message' => 'Order is already cancelled.',
+            ], 422);
+        }
+
+        $cancelledOrder = $this->orderDAO->updateStatus($id, 'cancelled');
+
+        return response()->json([
+            'message' => 'Order cancelled successfully.',
+            'order' => $cancelledOrder,
+        ]);
+    }
 }
