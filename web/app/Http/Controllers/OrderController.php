@@ -8,6 +8,7 @@ use App\DTO\CreateOrderDTO;
 use App\DTO\OrderItemDTO;
 use App\Models\Product;
 use DB;
+use Dotenv\Repository\RepositoryInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -49,13 +50,21 @@ class OrderController extends Controller
             'items.*.quantity' => ['required', 'integer', 'min:1'],
         ]);
         $user = auth('api')->user();
-        $order = DB::transaction(function() use ($validated, $user){
+        $order = DB::transaction(function () use ($validated, $user) {
             $items = [];
+            
             foreach ($validated['items'] as $item) {
                 $product = Product::findOrFail($item['product_id']);
-                $item[] = [
+                
+                if ($product->stock < $item['quantity']) {
+                    return response()->json([
+                        'message' => "Product '{$product->name}' has insufficient stock. Available: {$product->stock}, Requested: {$item['quantity']}"
+                    ]);
+                }
+                
+                $items[] = [
                     'product_id' => $product->id,
-                    'quantity' =>$item['quantity'],
+                    'quantity' => $item['quantity'],
                     'ItemPrice' => $product->prix,
                 ];
             }
@@ -66,6 +75,7 @@ class OrderController extends Controller
                 ])
             );
             $order->orderItems()->createMany($items);
+
             return $order->load('orderItems');
         });
         return response()->json($order, 201);
@@ -101,17 +111,29 @@ class OrderController extends Controller
         }
 
         $validated = $request->validate([
+            'product_id' => ['required', 'integer', 'exists:products,id'],
             'quantity' => ['required', 'integer', 'min:1'],
-            'ItemPrice' => ['required', 'numeric', 'min:0'],
-           ]);
+            'ItemPrice' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        $product = Product::findOrFail($validated['product_id']);
+
+        if ($product->stock < $validated['quantity']) {
+            return response()->json([
+                'message' => "Product has insufficient stock. Available: {$product->stock}, Requested: {$validated['quantity']}",
+            ], 422);
+        }
 
         $dto = OrderItemDTO::fromArray([
             'order_id' => $orderId,
+                        'product_id' => $validated['product_id'],
             'quantity' => $validated['quantity'],
-            'ItemPrice' => $validated['ItemPrice'] ?? $validated['item_price'],
+            'ItemPrice' => $validated['ItemPrice'] ?? $product->prix,
         ]);
 
         $this->orderDAO->addItem($orderId, $dto);
+
+    $product->decrement('stock', $validated['quantity']);
 
         return response()->json([
             'message' => 'Item added successfully.',
@@ -216,3 +238,23 @@ class OrderController extends Controller
         ]);
     }
 }
+                            // Restore product stock before deleting
+                            foreach ($order->orderItems as $item) {
+                                $product = Product::findOrFail($item->product_id);
+                                $product->increment('stock', $item->quantity);
+                            }
+
+                    // Restore product stock
+                    foreach ($order->orderItems as $item) {
+                        $product = Product::findOrFail($item->product_id);
+                        $product->increment('stock', $item->quantity);
+                    }
+
+            
+            
+            
+            // Decrement product stock
+            foreach ($validated['items'] as $item) {
+                $product = Product::findOrFail($item['product_id']);
+                $product->decrement('stock', $item['quantity']);
+            }
