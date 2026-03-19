@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\DAO\Interfaces\ProductDAOInterface;
 use App\DTO\CreateProductDTO;
+use App\Http\Requests\StoreProductImageRequest;
 use App\Http\Requests\StoreProductRequest;
 use App\Http\Requests\UpdateProductRequest;
 
@@ -72,5 +73,42 @@ class ProductController extends Controller
         return response()->json([
             'message' => 'Product deleted successfully.',
         ]);
+    }
+
+    public function addImage(StoreProductImageRequest $request, int $id)
+    {
+        $product = $this->productDAO->findById($id);
+
+        if (!$product) {
+            return response()->json([
+                'message' => 'Product not found.',
+            ], 404);
+        }
+
+        $files = [];
+
+        if ($request->hasFile('image')) {
+            $files[] = $request->file('image');
+        }
+
+        if ($request->hasFile('images')) {
+            foreach ($request->file('images') as $file) {
+                $files[] = $file;
+            }
+        }
+
+        $createdImages = [];
+
+        foreach ($files as $file) {
+            $path = $file->store('products', 'public');
+            $createdImages[] = $product->images()->create([
+                'content' => $path,
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'Image(s) added successfully.',
+            'images' => $createdImages,
+        ], 201);
     }
 }
