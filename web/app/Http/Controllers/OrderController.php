@@ -179,4 +179,40 @@ class OrderController extends Controller
             'order' => $cancelledOrder,
         ]);
     }
+
+    public function prepare(int $id): JsonResponse
+    {
+        $order = $this->orderDAO->findById($id);
+
+        if (!$order) {
+            return response()->json([
+                'message' => 'Order not found.',
+            ], 404);
+        }
+
+        if ($order->status === 'cancelled') {
+            return response()->json([
+                'message' => 'Cannot prepare a cancelled order.',
+            ], 422);
+        }
+
+        if ($order->status === 'delivered') {
+            return response()->json([
+                'message' => 'Cannot prepare an order that has already been delivered.',
+            ], 422);
+        }
+
+        if ($order->status === 'preparing') {
+            return response()->json([
+                'message' => 'Order is already being prepared.',
+            ], 422);
+        }
+
+        $preparedOrder = $this->orderDAO->updateStatus($id, 'preparing');
+
+        return response()->json([
+            'message' => 'Order prepared successfully.',
+            'order' => $preparedOrder,
+        ]);
+    }
 }
